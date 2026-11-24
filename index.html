@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-mode="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kt</title>
+<meta name="theme-color" content="#141414">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kt">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* VOICE   quiet, private, a record kept over years
+   IDEA    one hairline through time; dates sit in the margin, a dot marks each event
+   PICTURE filled dot = the world, open dot = me; the composer is a Pd object box
+   COLOUR  two greys only, swapped by a Pd toggle
+   TYPE    Inter for the writing, SF Mono for stamps, labels and controls */
+:root{--bg:#141414;--ink:#ebebeb;--faint:rgba(235,235,235,.36);--hair:rgba(235,235,235,.14);--mark:rgba(235,235,235,.2);color-scheme:dark}
+:root[data-mode=light]{--bg:#ebebeb;--ink:#141414;--faint:rgba(20,20,20,.4);--hair:rgba(20,20,20,.15);--mark:rgba(20,20,20,.16);color-scheme:light}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;background:var(--bg);color:var(--ink)}
+body{font:16px/1.7 Inter,-apple-system,'Helvetica Neue',sans-serif;overflow-x:clip;-webkit-font-smoothing:antialiased;transition:background-color .25s,color .25s}
+.mono{font-family:ui-monospace,'SF Mono',SFMono-Regular,Menlo,'DejaVu Sans Mono',monospace;font-size:11px;line-height:1.2;letter-spacing:.03em}
+main{max-width:680px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 76px) max(24px,env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 96px) max(24px,env(safe-area-inset-left))}
+.bar{position:fixed;top:0;right:0;z-index:2;display:flex;align-items:center;gap:6px;padding:calc(env(safe-area-inset-top) + 12px) max(12px,env(safe-area-inset-right)) 0 0}
+#status{color:var(--faint)}
+.tgl{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;padding:0;cursor:pointer;color:var(--ink)}
+.tgl span{width:17px;height:17px;border:1px solid currentColor;position:relative;overflow:hidden}
+.tgl[aria-pressed=true] span::before,.tgl[aria-pressed=true] span::after{content:"";position:absolute;left:50%;top:50%;width:24px;height:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}
+.tgl[aria-pressed=true] span::after{transform:translate(-50%,-50%) rotate(-45deg)}
+.tgl:focus-visible,.link:focus-visible,.pin:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.search{display:flex;align-items:baseline;gap:16px;margin:0 0 34px}
+.search input{flex:1;border:0;border-bottom:1px solid var(--hair);border-radius:0;outline:0;background:transparent;color:var(--ink);padding:4px 0 7px;margin:0;caret-color:var(--ink);-webkit-appearance:none;appearance:none;font-size:13px}
+.search input:focus{border-bottom-color:var(--faint)}
+.search input::-webkit-search-cancel-button{display:none}
+#count{color:var(--faint);white-space:nowrap}
+.entry{margin:0 0 24px}
+.row{display:flex;justify-content:space-between;align-items:center;min-height:16px;margin:0 0 7px}
+.time{color:var(--faint);transition:color .2s}
+.entry:focus-within .time,.n:focus-within .time{color:var(--ink)}
+textarea{display:block;width:100%;border:0;outline:0;resize:none;background:transparent;color:inherit;font:inherit;padding:0;margin:0;overflow:hidden;field-sizing:content;min-height:1.7em;caret-color:var(--ink);white-space:pre-wrap;overflow-wrap:break-word}
+textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
+.box{position:relative;border:1px solid var(--hair);padding:14px 16px 16px;transition:border-color .2s}
+.box:focus-within{border-color:var(--faint)}
+.box::before,.box::after{content:"";position:absolute;left:-1px;width:12px;height:3px;background:var(--faint)}
+.box::before{top:-1px}.box::after{bottom:-1px}
+#list{margin-top:40px}
+.n{border-top:1px solid var(--hair);padding:20px 0 22px}
+.ed{position:relative}
+.ed textarea{position:relative;z-index:1}
+.hl{position:absolute;inset:0;white-space:pre-wrap;overflow-wrap:break-word;color:transparent;pointer-events:none;user-select:none}
+.hl mark{background:var(--mark);color:transparent;border-radius:2px}
+.pin{display:flex;align-items:center;gap:7px;background:none;border:0;margin:-8px 0;padding:8px 0 8px 12px;color:var(--faint);cursor:pointer}
+.pin span{width:11px;height:11px;border:1px solid currentColor;position:relative;overflow:hidden}
+.pin[aria-pressed=true]{color:var(--ink)}
+.pin[aria-pressed=true] span::before,.pin[aria-pressed=true] span::after{content:"";position:absolute;left:50%;top:50%;width:16px;height:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}
+.pin[aria-pressed=true] span::after{transform:translate(-50%,-50%) rotate(-45deg)}
+.pin:hover{color:var(--ink)}
+.empty{color:var(--faint);border-top:1px solid var(--hair);padding:20px 0;margin:0}
+.link{background:none;border:0;padding:6px 0;margin:0;color:var(--faint);cursor:pointer;min-height:28px}
+.link:hover,.link[aria-expanded=true]{color:var(--ink)}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 22px;border-top:1px solid var(--hair);padding-top:18px;color:var(--faint)}
+.foot .right{display:flex;gap:22px;margin-left:auto}
+.panel{border-top:1px solid var(--hair);padding:30px 0 34px}
+.panel .entry:last-child{margin-bottom:0}
+.field{display:block;margin:0 0 14px}
+.field .mono{display:block;color:var(--faint);margin:0 0 4px}
+.field input{display:block;width:100%;border:0;border-bottom:1px solid var(--hair);border-radius:0;outline:0;background:transparent;color:inherit;font:inherit;padding:2px 0 4px;margin:0;caret-color:var(--ink);-webkit-appearance:none;appearance:none}
+.field input:focus{border-bottom-color:var(--faint)}
+.acts{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px}
+.note{color:var(--faint);margin:2px 0 0;line-height:1.6}
+@media(max-width:600px){main{padding-top:calc(env(safe-area-inset-top) + 64px)}.hint{display:none}.search input{font-size:16px}}
+@media(prefers-reduced-motion:reduce){body,.time,.box{transition:none}}
+
+#list{margin-top:44px}
+.vw{width:44px;height:44px;display:grid;place-items:center;background:none;border:0;padding:0;cursor:pointer;color:var(--ink)}
+.vw span{width:17px;height:17px;border-radius:50%;border:1px solid currentColor;background:linear-gradient(90deg,currentColor 50%,transparent 50%)}
+.vw[data-v=m] span{background:transparent}
+.vw[data-v=w] span{background:currentColor}
+.vw:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.crow{display:flex;justify-content:space-between;align-items:center;min-height:28px;margin:0 0 6px;gap:12px}
+.dpick{position:relative;display:inline-block;color:var(--faint);cursor:pointer;padding:6px 0}
+.dpick.set{color:var(--ink)}
+.dpick input{position:absolute;inset:0;opacity:0;width:100%;height:100%;border:0;padding:0;margin:0;cursor:pointer;font-size:16px;-webkit-appearance:none;appearance:none}
+.dpick:focus-within{outline:1px solid var(--ink);outline-offset:2px}
+.kinds{display:flex;align-items:center;gap:14px}
+.kinds .pin{margin:0}
+.crow .link{margin-left:4px}
+.ev{display:grid;grid-template-columns:96px 15px 1fr;column-gap:12px}
+.ev .dpick{justify-self:end;align-self:start;padding:8px 0 4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .dpick.same{opacity:0}
+.ev:focus-within .dpick.same,.ev .dpick.same:hover{opacity:1}
+.rail{position:relative}
+.rail::before{content:"";position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--faint);opacity:.75}
+.ev.first .rail::before{top:14px}
+.ev.last .rail::before{bottom:auto;height:14px}
+.ev.first.last .rail::before{display:none}
+.dot{position:absolute;left:-6px;top:0;width:27px;height:28px;padding:0;border:0;background:none;cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+.dot span{width:9px;height:9px;border-radius:50%;border:1px solid currentColor;background:var(--bg);transition:background-color .15s}
+.dot[aria-pressed=true] span{background:currentColor}
+.dot:focus-visible{outline:1px solid var(--ink);outline-offset:-4px}
+.ev .t{padding:0 0 20px}
+.ev .ed textarea,.ev .hl{line-height:1.7}
+.key{display:inline-flex;gap:14px;align-items:center}
+.key i{display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid currentColor;margin-right:5px;vertical-align:-1px}
+.key i.w{background:currentColor}
+#list .empty{border-top:0;padding:0}
+@media(max-width:600px){.ev{grid-template-columns:84px 15px 1fr;column-gap:10px}}
+@media(prefers-reduced-motion:reduce){.dot span{transition:none}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span id="status" class="mono" aria-live="polite"></span>
+  <button id="vw" class="vw" data-v="all" aria-label="Showing everything" title="Show everything, only me, or only the world"><span></span></button>
+  <button id="tgl" class="tgl" aria-label="Dark mode" aria-pressed="true" title="Toggle light and dark"><span></span></button>
+</div>
+<main>
+  <div class="search">
+    <input id="q" class="mono" type="search" placeholder="search" aria-label="Search the timeline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    <span id="count" class="mono" aria-live="polite"></span>
+  </div>
+  <div class="entry" id="compose">
+    <div class="crow">
+      <label class="dpick mono" id="compDateWrap" title="Change the date"><span id="compDate"></span><input id="compDateIn" type="date" aria-label="Date of the new event"></label>
+      <span class="kinds">
+        <button id="newBtn" class="link mono" hidden>new entry</button>
+        <button class="pin mono kind" data-k="m" aria-pressed="true">me<span></span></button>
+        <button class="pin mono kind" data-k="w" aria-pressed="false">world<span></span></button>
+      </span>
+    </div>
+    <div class="box"><textarea id="composer" rows="1" aria-label="New event" spellcheck="true"></textarea></div>
+  </div>
+  <div id="list"></div>
+  <section id="panel" class="panel" hidden aria-label="Sync">
+    <div class="entry">
+      <div class="row"><span class="time mono">sync</span><span id="syncState" class="time mono"></span></div>
+      <div class="box">
+        <div id="setup">
+          <label class="field"><span class="mono">private repository</span><input id="repo" placeholder="username/kt-data" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+          <label class="field"><span class="mono">access token</span><input id="token" type="password" placeholder="github_pat_…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        </div>
+        <div class="acts">
+          <button id="connectBtn" class="link mono">connect</button>
+          <button id="syncBtn" class="link mono" hidden>sync now</button>
+          <button id="disconnectBtn" class="link mono" hidden>disconnect this device</button>
+        </div>
+        <p id="syncMsg" class="note mono"></p>
+      </div>
+    </div>
+    <div class="entry">
+      <div class="row"><span class="time mono">import</span></div>
+      <div class="box">
+        <textarea id="importText" rows="3" placeholder="Paste text from “copy all as text”" aria-label="Text to import" spellcheck="false"></textarea>
+        <div class="acts"><button id="importBtn" class="link mono">import</button></div>
+      </div>
+    </div>
+  </section>
+  <div class="foot mono">
+    <span class="key"><span><i></i>me</span><span><i class="w"></i>world</span><span class="hint">· tap a dot to switch · tap a date to change it</span></span>
+    <span class="right">
+      <button id="syncLink" class="link mono" aria-expanded="false" aria-controls="panel">sync</button>
+      <button id="copyBtn" class="link mono">copy all as text</button>
+    </span>
+  </div>
+</main>
+<script>
+{
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const isDay=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
+const dayOf=t=>{const d=new Date(t);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const today=()=>dayOf(Date.now());
+const parseDay=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+/* Tue 24 Nov 26 */
+const fmtDay=s=>{const d=parseDay(s);return DN[d.getDay()]+' '+d.getDate()+' '+MN[d.getMonth()]+' '+String(d.getFullYear()).slice(2)};
+const fmtStamp=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes())+' '+pad(d.getDate())+'-'+pad(d.getMonth()+1)+'-'+String(d.getFullYear()).slice(2)};
+/* Kj, Kn and Kt share one github.io address, so they share localStorage: every key here starts with "t." */
+const LS={get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.parse(v)}catch(e){return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+
+const statusEl=$('#status'),tgl=$('#tgl'),comp=$('#composer'),newBtn=$('#newBtn');
+const compDate=$('#compDate'),compDateIn=$('#compDateIn'),compDateWrap=$('#compDateWrap');
+const list=$('#list'),qIn=$('#q'),countEl=$('#count');
+const setStatus=t=>{statusEl.textContent=t};
+const fits=window.CSS&&CSS.supports&&CSS.supports('field-sizing','content');
+const autosize=t=>{if(fits)return;t.style.height='auto';t.style.height=t.scrollHeight+'px'};
+const openPicker=inp=>{try{inp.showPicker&&inp.showPicker()}catch(e){}};
+
+/* ---------- local state ---------- */
+const clean=(id,v)=>{
+  if(!v||typeof v.ts!=='number')return null;
+  return {id,ts:v.ts,d:isDay(v.d)?v.d:dayOf(v.ts),k:v.k==='w'?'w':'m',text:String(v.text==null?'':v.text),u:typeof v.u==='number'?v.u:v.ts};
+};
+const pack=e=>({d:e.d,ts:e.ts,k:e.k,text:e.text,u:e.u});
+let events=new Map();
+for(const [k,v] of Object.entries(LS.get('t.events',{}))){const e=clean(k,v);if(e)events.set(k,e)}
+let dead=LS.get('t.dead',{})||{};
+let mode=LS.get('t.mode','dark'),modeU=LS.get('t.modeU',0);
+let cfg=LS.get('t.sync',null);
+let dirty=LS.get('t.dirty',false);
+let composerId=null,structKey='';
+let compDay=null,compKind=LS.get('t.kind','m');
+let view=LS.get('t.view','all');if(view!=='m'&&view!=='w')view='all';
+const nodes=new Map();
+let cacheT=null;
+const cacheNow=()=>{clearTimeout(cacheT);cacheT=null;
+  LS.set('t.events',Object.fromEntries([...events].map(([k,e])=>[k,pack(e)])));
+  LS.set('t.dead',dead);LS.set('t.mode',mode);LS.set('t.modeU',modeU);LS.set('t.dirty',dirty)};
+const cacheSoon=()=>{if(!cacheT)cacheT=setTimeout(cacheNow,400)};
+const changed=()=>{dirty=true;cacheSoon();schedulePush()};
+
+const meta=document.querySelector('meta[name=theme-color]');
+const applyMode=()=>{document.documentElement.dataset.mode=mode;tgl.setAttribute('aria-pressed',String(mode==='dark'));meta.content=mode==='dark'?'#141414':'#ebebeb'};
+tgl.addEventListener('click',()=>{mode=mode==='dark'?'light':'dark';modeU=Date.now();applyMode();changed()});
+
+function remove(id){
+  events.delete(id);nodes.delete(id);dead[id]=Date.now();render();changed();
+}
+
+/* ---------- search ---------- */
+const fold=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+let terms=[];
+const matches=e=>{if(!terms.length)return true;const t=fold(e.text+' '+fmtDay(e.d)+' '+(e.k==='w'?'world':'me'));return terms.every(w=>t.includes(w))};
+const esc=c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c;
+function paintMarks(hl,text){
+  if(!terms.length){if(hl.childNodes.length)hl.textContent='';return}
+  const f=fold(text);
+  if(f.length!==text.length){hl.textContent='';return}
+  const hit=new Uint8Array(text.length);
+  for(const w of terms){let i=0;while((i=f.indexOf(w,i))!==-1){hit.fill(1,i,i+w.length);i+=w.length}}
+  let out='',open=false;
+  for(let i=0;i<text.length;i++){
+    if(hit[i]&&!open){out+='<mark>';open=true}
+    if(!hit[i]&&open){out+='</mark>';open=false}
+    out+=esc(text[i]);
+  }
+  if(open)out+='</mark>';
+  hl.innerHTML=out+'\n';
+}
+qIn.addEventListener('input',()=>{terms=fold(qIn.value).split(/\s+/).filter(Boolean);render()});
+qIn.addEventListener('keydown',ev=>{
+  if(ev.key==='Escape'){qIn.value='';terms=[];render();comp.focus()}
+  if(ev.key==='Enter'){ev.preventDefault();const first=list.querySelector('textarea');if(first)first.focus()}
+});
+document.addEventListener('keydown',ev=>{
+  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&!ev.altKey&&ev.key.toLowerCase()==='f'){ev.preventDefault();qIn.focus();qIn.select()}
+});
+
+/* ---------- rendering ---------- */
+function nodeFor(e){
+  let n=nodes.get(e.id);
+  if(!n){
+    const id=e.id;
+    const el=document.createElement('div');el.className='ev';
+    const dp=document.createElement('label');dp.className='dpick mono';dp.title='Change the date';
+    const dt=document.createElement('span');
+    const di=document.createElement('input');di.type='date';di.setAttribute('aria-label','Date of this event');
+    dp.append(dt,di);
+    dp.addEventListener('click',()=>openPicker(di));
+    di.addEventListener('change',()=>{const cur=events.get(id);if(!cur||!isDay(di.value)||di.value===cur.d)return;cur.d=di.value;cur.u=Date.now();render();changed()});
+    const rail=document.createElement('span');rail.className='rail';
+    const dot=document.createElement('button');dot.type='button';dot.className='dot';dot.append(document.createElement('span'));
+    dot.addEventListener('click',()=>{const cur=events.get(id);if(!cur)return;cur.k=cur.k==='w'?'m':'w';cur.u=Date.now();nodeFor(cur);changed()});
+    rail.append(dot);
+    const t=document.createElement('div');t.className='t';
+    const ed=document.createElement('div');ed.className='ed';
+    const hl=document.createElement('div');hl.className='hl';hl.setAttribute('aria-hidden','true');
+    const ta=document.createElement('textarea');ta.rows=1;ta.dataset.id=id;ta.setAttribute('aria-label','Event');
+    ed.append(hl,ta);t.append(ed);
+    ta.addEventListener('input',()=>{const cur=events.get(id);if(!cur)return;cur.text=ta.value;cur.u=Date.now();autosize(ta);paintMarks(hl,ta.value);changed()});
+    ta.addEventListener('blur',()=>{if(!events.has(id))return;if(!ta.value.trim())remove(id);else{cacheNow();if(terms.length)setTimeout(render)}});
+    ta.addEventListener('keydown',ev=>{if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){ev.preventDefault();comp.focus()}});
+    el.append(dp,rail,t);n={el,ta,hl,dp,dt,di,dot};nodes.set(id,n);
+  }
+  n.dt.textContent=fmtDay(e.d);
+  if(n.di.value!==e.d)n.di.value=e.d;
+  const w=e.k==='w';
+  n.dot.setAttribute('aria-pressed',String(w));
+  n.dot.setAttribute('aria-label',w?'World event, switch to me':'My event, switch to world');
+  n.dot.title=w?'world':'me';
+  if(document.activeElement!==n.ta&&n.ta.value!==e.text)n.ta.value=e.text;
+  paintMarks(n.hl,n.ta.value);
+  return n.el;
+}
+/* newest day first; within a day, in the order they were written */
+const order=(a,b)=>a.d<b.d?1:a.d>b.d?-1:a.ts-b.ts;
+function render(){
+  const act=document.activeElement,actId=act&&act.dataset?act.dataset.id:null;
+  const shown=[...events.values()].filter(e=>e.id!==composerId&&(e.id===actId||(e.text.trim()&&matches(e)&&(view==='all'||e.k===view)))).sort(order);
+  countEl.textContent=terms.length?(shown.length===1?'1 event':shown.length+' events'):'';
+  const key=view+'|'+terms.join(' ')+'|'+shown.map(e=>e.id+e.d).join(',');
+  if(key===structKey){shown.forEach(nodeFor);requestAnimationFrame(sizeAll);return}
+  structKey=key;
+  const s=actId?act.selectionStart:0,en=actId?act.selectionEnd:0;
+  const els=shown.map((e,i)=>{
+    const el=nodeFor(e),n=nodes.get(e.id);
+    n.dp.classList.toggle('same',i>0&&shown[i-1].d===e.d);
+    el.classList.toggle('first',i===0);el.classList.toggle('last',i===shown.length-1);
+    return el;
+  });
+  if(terms.length&&!shown.length){const p=document.createElement('p');p.className='empty mono';p.textContent='nothing matches';els.push(p)}
+  list.replaceChildren(...els);
+  for(const id of [...nodes.keys()])if(!events.has(id))nodes.delete(id);
+  if(actId&&nodes.has(actId)){const t=nodes.get(actId).ta;if(document.activeElement!==t){t.focus({preventScroll:true});try{t.setSelectionRange(s,en)}catch(e){}}}
+  requestAnimationFrame(sizeAll);
+}
+const sizeAll=()=>document.querySelectorAll('textarea').forEach(autosize);
+
+/* ---------- composer ---------- */
+const curDay=()=>compDay||today();
+function syncComposerUi(){
+  const d=curDay();
+  compDate.textContent=d===today()?fmtDay(d):fmtDay(d);
+  compDateWrap.classList.toggle('set',d!==today());
+  if(compDateIn.value!==d)compDateIn.value=d;
+  document.querySelectorAll('.kind').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.k===compKind)));
+  newBtn.hidden=!(composerId&&events.has(composerId));
+}
+compDateWrap.addEventListener('click',()=>openPicker(compDateIn));
+compDateIn.addEventListener('change',()=>{
+  const v=compDateIn.value;
+  compDay=isDay(v)&&v!==today()?v:null;
+  const e=composerId&&events.get(composerId);
+  if(e){e.d=curDay();e.u=Date.now();changed()}
+  syncComposerUi();
+});
+document.querySelectorAll('.kind').forEach(b=>b.addEventListener('click',()=>{
+  compKind=b.dataset.k;LS.set('t.kind',compKind);
+  const e=composerId&&events.get(composerId);
+  if(e){e.k=compKind;e.u=Date.now();changed()}
+  syncComposerUi();comp.focus();
+}));
+comp.addEventListener('input',()=>{
+  autosize(comp);
+  const text=comp.value;
+  if(!composerId){
+    if(!text.trim())return;
+    const ts=Date.now();
+    composerId='t'+ts.toString(36)+Math.random().toString(36).slice(2,6);
+    events.set(composerId,{id:composerId,ts,d:curDay(),k:compKind,text,u:ts});
+    syncComposerUi();
+  }
+  const e=events.get(composerId);
+  if(!e){composerId=null;syncComposerUi();return}
+  if(!text.trim()){const id=composerId;composerId=null;syncComposerUi();remove(id);return}
+  e.text=text;e.u=Date.now();changed();
+});
+function commit(){
+  if(!composerId)return;
+  cacheNow();composerId=null;comp.value='';autosize(comp);syncComposerUi();render();
+}
+comp.addEventListener('keydown',ev=>{if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){ev.preventDefault();commit()}});
+newBtn.addEventListener('click',()=>{commit();comp.focus()});
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){cacheNow();if(dirty)sync()}
+  else{syncComposerUi();sync()}
+});
+window.addEventListener('pagehide',cacheNow);
+window.addEventListener('online',()=>sync());
+setInterval(()=>{if(!document.hidden)sync()},60000);
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(sizeAll,150)});
+
+/* ---------- copy all as text: "Tue 24 Nov 26 · me" then the text ---------- */
+function plainText(){
+  return [...events.values()].filter(e=>e.text.trim()).sort(order)
+    .map(e=>fmtDay(e.d)+' · '+(e.k==='w'?'world':'me')+'\n'+e.text.trim()).join('\n\n\n');
+}
+$('#copyBtn').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(plainText());setStatus('copied')}catch(e){setStatus('copy refused')}
+});
+
+/* ---------- sync: one JSON file in a private GitHub repository ---------- */
+const API='https://api.github.com',FILE='timeline.json';
+let busy=false,again=false,pushT=null;
+function schedulePush(){if(!cfg)return;clearTimeout(pushT);pushT=setTimeout(()=>sync(),3000)}
+
+const snapshot=()=>({v:1,mode,modeU,events:Object.fromEntries([...events].filter(([,e])=>e.text.trim()).map(([k,e])=>[k,pack(e)])),deleted:{...dead}});
+function normal(d){
+  const out={v:1,mode:'dark',modeU:0,events:{},deleted:{}};
+  if(!d||typeof d!=='object')return out;
+  if(d.mode==='dark'||d.mode==='light'){out.mode=d.mode;out.modeU=+d.modeU||0}
+  for(const [k,v] of Object.entries(d.events||{})){const e=clean(k,v);if(e)out.events[k]=pack(e)}
+  for(const [k,t] of Object.entries(d.deleted||{}))if(typeof t==='number')out.deleted[k]=t;
+  return out;
+}
+function merge(a,b){
+  const E={},D={...a.deleted};
+  for(const [k,t] of Object.entries(b.deleted))D[k]=Math.max(D[k]||0,t);
+  for(const src of [a.events,b.events])for(const [k,e] of Object.entries(src))if(!E[k]||e.u>E[k].u)E[k]=e;
+  for(const k of Object.keys(E))if(D[k]!=null){if(E[k].u<=D[k])delete E[k];else delete D[k]}
+  const m=b.modeU>a.modeU?b:a;
+  return {v:1,mode:m.mode,modeU:m.modeU,events:E,deleted:D};
+}
+const sorted=v=>Array.isArray(v)?v.map(sorted):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sorted(v[k])])):v;
+const serial=o=>JSON.stringify(sorted(o),null,1)+'\n';
+function adopt(m){
+  const cur=merge(snapshot(),m);
+  const next=new Map();
+  for(const [k,e] of Object.entries(cur.events))next.set(k,clean(k,e));
+  if(composerId&&events.has(composerId)&&!next.has(composerId)&&!cur.deleted[composerId])next.set(composerId,events.get(composerId));
+  for(const e of events.values())if(!e.text.trim()&&!next.has(e.id)&&!cur.deleted[e.id])next.set(e.id,e);
+  events=next;dead=cur.deleted;
+  if(cur.mode!==mode){mode=cur.mode;applyMode()}
+  modeU=cur.modeU;
+  render();syncComposerUi();
+}
+const enc=s=>{const b=new TextEncoder().encode(s);let o='';for(let i=0;i<b.length;i+=0x8000)o+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(o)};
+const dec=s=>{const r=atob(s.replace(/\s/g,''));const b=new Uint8Array(r.length);for(let i=0;i<r.length;i++)b[i]=r.charCodeAt(i);return new TextDecoder().decode(b)};
+class SyncError extends Error{constructor(msg,fatal){super(msg);this.fatal=fatal}}
+async function gh(c,method,path,body){
+  let r;
+  try{r=await fetch(API+'/repos/'+c.repo+path,{method,cache:'no-store',headers:{Authorization:'Bearer '+c.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined})}
+  catch(e){throw new SyncError('offline, saved here')}
+  if(r.status===401)throw new SyncError('token refused',true);
+  if(r.status===403&&r.headers.get('x-ratelimit-remaining')==='0')throw new SyncError('github busy, will retry');
+  return r;
+}
+async function pull(c){
+  const r=await gh(c,'GET','/contents/'+FILE);
+  if(r.status===404)return {sha:null,data:null};
+  if(!r.ok)throw new SyncError(r.status===403?'token cannot read this repository':'sync error '+r.status,r.status===403);
+  const j=await r.json();
+  let b64=j.content||'';
+  if(!b64&&j.size>0){const b=await gh(c,'GET','/git/blobs/'+j.sha);if(!b.ok)throw new SyncError('sync error '+b.status);b64=(await b.json()).content||''}
+  let data=null;try{data=b64?JSON.parse(dec(b64)):null}catch(e){throw new SyncError('timeline.json is not readable',true)}
+  return {sha:j.sha,data};
+}
+async function sync(){
+  if(!cfg)return;
+  if(busy){again=true;return}
+  busy=true;clearTimeout(pushT);
+  const c=cfg;
+  try{
+    setStatus('syncing');
+    for(let i=0;;i++){
+      const {sha,data}=await pull(c);
+      const remote=normal(data);
+      dirty=false;
+      const merged=merge(snapshot(),remote);
+      adopt(merged);
+      const out=serial(merged);
+      if(data&&out===serial(remote))break;
+      const r=await gh(c,'PUT','/contents/'+FILE,{message:'timeline '+fmtStamp(Date.now()),content:enc(out),...(sha?{sha}:{})});
+      if(r.ok)break;
+      if((r.status===409||r.status===422)&&i<4)continue;
+      throw new SyncError(r.status===403||r.status===404?'token cannot write to this repository':'sync error '+r.status,r.status===403||r.status===404);
+    }
+    if(cfg===c){setStatus('synced');syncMsg('Last synced '+fmtStamp(Date.now())+'.')}
+  }catch(e){
+    dirty=true;
+    setStatus(e.message||'offline, saved here');
+    if(e.fatal)syncMsg('Sync paused: '+e.message+'. Check the repository name and token, then connect again.');
+  }finally{
+    busy=false;cacheNow();
+    if(again){again=false;sync()}
+  }
+}
+
+/* ---------- sync panel ---------- */
+const panel=$('#panel'),syncLink=$('#syncLink'),repoIn=$('#repo'),tokenIn=$('#token');
+const syncMsg=t=>{$('#syncMsg').textContent=t};
+function panelUi(){
+  $('#setup').hidden=!!cfg;
+  $('#connectBtn').hidden=!!cfg;
+  $('#syncBtn').hidden=$('#disconnectBtn').hidden=!cfg;
+  $('#syncState').textContent=cfg?cfg.repo:'not connected';
+  if(!cfg){syncMsg('Events are kept on this device only. Connect a private GitHub repository to sync between devices.');setStatus('this device only')}
+}
+syncLink.addEventListener('click',()=>{
+  panel.hidden=!panel.hidden;syncLink.setAttribute('aria-expanded',String(!panel.hidden));
+  if(!panel.hidden)panel.scrollIntoView({behavior:'smooth',block:'start'});
+});
+$('#connectBtn').addEventListener('click',async()=>{
+  const repo=repoIn.value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/+$/,'');
+  const token=tokenIn.value.trim();
+  if(!/^[\w.-]+\/[\w.-]+$/.test(repo)){syncMsg('Write the repository as username/name.');return}
+  if(!token){syncMsg('Paste the access token.');return}
+  syncMsg('Checking…');
+  const c={repo,token};
+  try{
+    const r=await gh(c,'GET','');
+    if(r.status===404||r.status===403){syncMsg('That repository was not found, or the token cannot see it.');return}
+    if(!r.ok){syncMsg('GitHub answered '+r.status+'. Try again.');return}
+    const j=await r.json();
+    if(!j.private){syncMsg('That repository is public. Make it private first, so nobody else can read your timeline.');return}
+  }catch(e){syncMsg(e.fatal?'GitHub refused that token.':'Could not reach GitHub. Check the connection.');return}
+  cfg=c;LS.set('t.sync',cfg);tokenIn.value='';dirty=true;panelUi();syncMsg('Connected. Syncing…');sync();
+});
+$('#syncBtn').addEventListener('click',()=>sync());
+$('#disconnectBtn').addEventListener('click',()=>{
+  cfg=null;LS.del('t.sync');panelUi();
+  syncMsg('Disconnected. Events stay on this device and in the repository.');
+});
+
+/* import the plain text that "copy all as text" produces */
+const hash=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)};
+function parseText(t){
+  const lines=t.replace(/\r\n?/g,'\n').split('\n'),out=[];
+  const re=/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) (\d{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d{2}) · (me|world)$/;
+  let cur=null;
+  const end=()=>{if(cur){const text=cur.lines.join('\n').trim();if(text)out.push({...cur,text})}cur=null};
+  lines.forEach((l,i)=>{
+    const s=l.trim(),blank=i===0||!lines[i-1].trim();
+    const m=blank&&s.match(re);
+    if(m){end();cur={d:(2000+ +m[3])+'-'+pad(MN.indexOf(m[2])+1)+'-'+pad(+m[1]),k:m[4]==='world'?'w':'m',lines:[]};return}
+    if(cur)cur.lines.push(l);
+  });
+  end();return out;
+}
+$('#importBtn').addEventListener('click',()=>{
+  const ta=$('#importText'),items=parseText(ta.value);
+  if(!items.length){setStatus('nothing to import');return}
+  const per=new Map();let added=0;
+  for(const it of items){
+    const n=per.get(it.d)||0;per.set(it.d,n+1);
+    /* keep the order within a day: written order, one second apart from midday */
+    const ts=parseDay(it.d).getTime()+12*3600e3+n*1000,id='i'+hash(it.d+'|'+it.k+'|'+it.text);
+    if(events.has(id)||dead[id])continue;
+    events.set(id,{id,ts,d:it.d,k:it.k,text:it.text,u:Date.now()});added++;
+  }
+  ta.value='';autosize(ta);render();changed();
+  setStatus(added?'imported '+added:'already imported');
+});
+
+/* the circle: half = everything, hollow = only me, solid = only the world. Kept per device. */
+const vw=$('#vw');
+const VL={all:'Showing everything',m:'Showing only me',w:'Showing only the world'};
+const applyView=()=>{vw.dataset.v=view;vw.setAttribute('aria-label',VL[view]+', tap to change')};
+vw.addEventListener('click',()=>{
+  view=view==='all'?'m':view==='m'?'w':'all';LS.set('t.view',view);applyView();
+  if(view!=='all'&&!composerId){compKind=view;LS.set('t.kind',compKind);syncComposerUi()}
+  render();
+});
+applyView();applyMode();render();syncComposerUi();panelUi();comp.focus({preventScroll:true});
+if(cfg)sync();
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+}
+</script>
+</body>
+</html>
