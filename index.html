@@ -122,7 +122,7 @@ textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
   <button id="tgl" class="tgl" aria-label="Dark mode" aria-pressed="true" title="Toggle light and dark"><span></span></button>
 </div>
 <main>
-  <div class="search">
+  <div class="search" id="searchRow" hidden>
     <input id="q" class="mono" type="search" placeholder="search" aria-label="Search the timeline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     <span id="count" class="mono" aria-live="polite"></span>
   </div>
@@ -244,13 +244,14 @@ function paintMarks(hl,text){
   if(open)out+='</mark>';
   hl.innerHTML=out+'\n';
 }
+qIn.addEventListener('blur',()=>{if(!qIn.value.trim())$('#searchRow').hidden=true});
 qIn.addEventListener('input',()=>{terms=fold(qIn.value).split(/\s+/).filter(Boolean);render()});
 qIn.addEventListener('keydown',ev=>{
-  if(ev.key==='Escape'){qIn.value='';terms=[];render();comp.focus()}
+  if(ev.key==='Escape'){qIn.value='';terms=[];$('#searchRow').hidden=true;render();comp.focus()}
   if(ev.key==='Enter'){ev.preventDefault();const first=list.querySelector('textarea');if(first)first.focus()}
 });
 document.addEventListener('keydown',ev=>{
-  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&!ev.altKey&&ev.key.toLowerCase()==='f'){ev.preventDefault();qIn.focus();qIn.select()}
+  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&!ev.altKey&&ev.key.toLowerCase()==='f'){ev.preventDefault();$('#searchRow').hidden=false;qIn.focus();qIn.select()}
 });
 
 /* ---------- rendering ---------- */
