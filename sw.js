@@ -1,6 +1,6 @@
 // Keeps Kt working offline. Bump VERSION when any app file changes.
 // Kj, Kn and Kt share one github.io address, so each app only clears its own caches.
-const VERSION = 'kt-v2';
+const VERSION = 'kt-v3';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
