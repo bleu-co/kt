@@ -36,11 +36,6 @@ main{max-width:680px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 76px)
 .tgl[aria-pressed=true] span::before,.tgl[aria-pressed=true] span::after{content:"";position:absolute;left:50%;top:50%;width:24px;height:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}
 .tgl[aria-pressed=true] span::after{transform:translate(-50%,-50%) rotate(-45deg)}
 .tgl:focus-visible,.link:focus-visible,.pin:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
-.search{display:flex;align-items:baseline;gap:16px;margin:0 0 34px}
-.search input{flex:1;border:0;border-bottom:1px solid var(--hair);border-radius:0;outline:0;background:transparent;color:var(--ink);padding:4px 0 7px;margin:0;caret-color:var(--ink);-webkit-appearance:none;appearance:none;font-size:13px}
-.search input:focus{border-bottom-color:var(--faint)}
-.search input::-webkit-search-cancel-button{display:none}
-#count{color:var(--faint);white-space:nowrap}
 .entry{margin:0 0 24px}
 .row{display:flex;justify-content:space-between;align-items:center;min-height:16px;margin:0 0 7px}
 .time{color:var(--faint);transition:color .2s}
@@ -54,9 +49,6 @@ textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
 #list{margin-top:40px}
 .n{border-top:1px solid var(--hair);padding:20px 0 22px}
 .ed{position:relative}
-.ed textarea{position:relative;z-index:1}
-.hl{position:absolute;inset:0;white-space:pre-wrap;overflow-wrap:break-word;color:transparent;pointer-events:none;user-select:none}
-.hl mark{background:var(--mark);color:transparent;border-radius:2px}
 .pin{display:flex;align-items:center;gap:7px;background:none;border:0;margin:-8px 0;padding:8px 0 8px 12px;color:var(--faint);cursor:pointer}
 .pin span{width:11px;height:11px;border:1px solid currentColor;position:relative;overflow:hidden}
 .pin[aria-pressed=true]{color:var(--ink)}
@@ -76,7 +68,7 @@ textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
 .field input:focus{border-bottom-color:var(--faint)}
 .acts{display:flex;flex-wrap:wrap;align-items:center;gap:0 22px}
 .note{color:var(--faint);margin:2px 0 0;line-height:1.6}
-@media(max-width:600px){main{padding-top:calc(env(safe-area-inset-top) + 64px)}.hint{display:none}.search input{font-size:16px}}
+@media(max-width:600px){main{padding-top:calc(env(safe-area-inset-top) + 64px)}.hint{display:none}}
 @media(prefers-reduced-motion:reduce){body,.time,.box{transition:none}}
 
 #list{margin-top:44px}
@@ -107,11 +99,10 @@ textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
 .dot[aria-pressed=true] span{background:currentColor}
 .dot:focus-visible{outline:1px solid var(--ink);outline-offset:-4px}
 .ev .t{padding:0 0 20px}
-.ev .ed textarea,.ev .hl{line-height:1.7}
+.ev .ed textarea{line-height:1.7}
 .key{display:inline-flex;gap:14px;align-items:center}
 .key i{display:inline-block;width:8px;height:8px;border-radius:50%;border:1px solid currentColor;margin-right:5px;vertical-align:-1px}
 .key i.w{background:currentColor}
-#list .empty{border-top:0;padding:0}
 @media(max-width:600px){.ev{grid-template-columns:84px 15px 1fr;column-gap:10px}}
 @media(prefers-reduced-motion:reduce){.dot span{transition:none}}
 </style>
@@ -123,10 +114,6 @@ textarea::placeholder,input::placeholder{color:var(--faint);font-style:italic}
   <button id="tgl" class="tgl" aria-label="Dark mode" aria-pressed="true" title="Toggle light and dark"><span></span></button>
 </div>
 <main>
-  <div class="search" id="searchRow" hidden>
-    <input id="q" class="mono" type="search" placeholder="search" aria-label="Search the timeline" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-    <span id="count" class="mono" aria-live="polite"></span>
-  </div>
   <div class="entry" id="compose">
     <div class="crow">
       <label class="dpick mono" id="compDateWrap" title="Change the date"><span id="compDate"></span><input id="compDateIn" type="date" aria-label="Date of the new event"></label>
@@ -188,7 +175,7 @@ const LS={get(k,f){try{const v=localStorage.getItem(k);return v==null?f:JSON.par
 
 const statusEl=$('#status'),tgl=$('#tgl'),comp=$('#composer'),newBtn=$('#newBtn');
 const compDate=$('#compDate'),compDateIn=$('#compDateIn'),compDateWrap=$('#compDateWrap');
-const list=$('#list'),qIn=$('#q'),countEl=$('#count');
+const list=$('#list');
 const setStatus=t=>{statusEl.textContent=t};
 const fits=window.CSS&&CSS.supports&&CSS.supports('field-sizing','content');
 const autosize=t=>{if(fits)return;t.style.height='auto';t.style.height=t.scrollHeight+'px'};
@@ -225,36 +212,6 @@ function remove(id){
   events.delete(id);nodes.delete(id);dead[id]=Date.now();render();changed();
 }
 
-/* ---------- search ---------- */
-const fold=s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-let terms=[];
-const matches=e=>{if(!terms.length)return true;const t=fold(e.text+' '+fmtDay(e.d)+' '+(e.k==='w'?'world':'me'));return terms.every(w=>t.includes(w))};
-const esc=c=>c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c;
-function paintMarks(hl,text){
-  if(!terms.length){if(hl.childNodes.length)hl.textContent='';return}
-  const f=fold(text);
-  if(f.length!==text.length){hl.textContent='';return}
-  const hit=new Uint8Array(text.length);
-  for(const w of terms){let i=0;while((i=f.indexOf(w,i))!==-1){hit.fill(1,i,i+w.length);i+=w.length}}
-  let out='',open=false;
-  for(let i=0;i<text.length;i++){
-    if(hit[i]&&!open){out+='<mark>';open=true}
-    if(!hit[i]&&open){out+='</mark>';open=false}
-    out+=esc(text[i]);
-  }
-  if(open)out+='</mark>';
-  hl.innerHTML=out+'\n';
-}
-qIn.addEventListener('blur',()=>{if(!qIn.value.trim())$('#searchRow').hidden=true});
-qIn.addEventListener('input',()=>{terms=fold(qIn.value).split(/\s+/).filter(Boolean);render()});
-qIn.addEventListener('keydown',ev=>{
-  if(ev.key==='Escape'){qIn.value='';terms=[];$('#searchRow').hidden=true;render();comp.focus()}
-  if(ev.key==='Enter'){ev.preventDefault();const first=list.querySelector('textarea');if(first)first.focus()}
-});
-document.addEventListener('keydown',ev=>{
-  if((ev.metaKey||ev.ctrlKey)&&!ev.shiftKey&&!ev.altKey&&ev.key.toLowerCase()==='f'){ev.preventDefault();$('#searchRow').hidden=false;qIn.focus();qIn.select()}
-});
-
 /* ---------- rendering ---------- */
 function nodeFor(e){
   let n=nodes.get(e.id);
@@ -273,13 +230,12 @@ function nodeFor(e){
     rail.append(dot);
     const t=document.createElement('div');t.className='t';
     const ed=document.createElement('div');ed.className='ed';
-    const hl=document.createElement('div');hl.className='hl';hl.setAttribute('aria-hidden','true');
     const ta=document.createElement('textarea');ta.rows=1;ta.dataset.id=id;ta.setAttribute('aria-label','Event');
-    ed.append(hl,ta);t.append(ed);
-    ta.addEventListener('input',()=>{const cur=events.get(id);if(!cur)return;cur.text=ta.value;cur.u=Date.now();autosize(ta);paintMarks(hl,ta.value);changed()});
-    ta.addEventListener('blur',()=>{if(!events.has(id))return;if(!ta.value.trim())remove(id);else{cacheNow();if(terms.length)setTimeout(render)}});
+    ed.append(ta);t.append(ed);
+    ta.addEventListener('input',()=>{const cur=events.get(id);if(!cur)return;cur.text=ta.value;cur.u=Date.now();autosize(ta);changed()});
+    ta.addEventListener('blur',()=>{if(!events.has(id))return;if(!ta.value.trim())remove(id);else cacheNow()});
     ta.addEventListener('keydown',ev=>{if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){ev.preventDefault();comp.focus()}});
-    el.append(dp,rail,t);n={el,ta,hl,dp,dt,di,dot};nodes.set(id,n);
+    el.append(dp,rail,t);n={el,ta,dp,dt,di,dot};nodes.set(id,n);
   }
   n.dt.textContent=fmtDay(e.d);
   if(n.di.value!==e.d)n.di.value=e.d;
@@ -288,16 +244,14 @@ function nodeFor(e){
   n.dot.setAttribute('aria-label',w?'World event, switch to me':'My event, switch to world');
   n.dot.title=w?'world':'me';
   if(document.activeElement!==n.ta&&n.ta.value!==e.text)n.ta.value=e.text;
-  paintMarks(n.hl,n.ta.value);
   return n.el;
 }
 /* newest day first; within a day, in the order they were written */
 const order=(a,b)=>a.d<b.d?1:a.d>b.d?-1:a.ts-b.ts;
 function render(){
   const act=document.activeElement,actId=act&&act.dataset?act.dataset.id:null;
-  const shown=[...events.values()].filter(e=>e.id!==composerId&&(e.id===actId||(e.text.trim()&&matches(e)&&(view==='all'||e.k===view)))).sort(order);
-  countEl.textContent=terms.length?(shown.length===1?'1 event':shown.length+' events'):'';
-  const key=view+'|'+terms.join(' ')+'|'+shown.map(e=>e.id+e.d).join(',');
+  const shown=[...events.values()].filter(e=>e.id!==composerId&&(e.id===actId||(e.text.trim()&&(view==='all'||e.k===view)))).sort(order);
+  const key=view+'|'+shown.map(e=>e.id+e.d).join(',');
   if(key===structKey){shown.forEach(nodeFor);requestAnimationFrame(sizeAll);return}
   structKey=key;
   const s=actId?act.selectionStart:0,en=actId?act.selectionEnd:0;
@@ -307,7 +261,6 @@ function render(){
     el.classList.toggle('first',i===0);el.classList.toggle('last',i===shown.length-1);
     return el;
   });
-  if(terms.length&&!shown.length){const p=document.createElement('p');p.className='empty mono';p.textContent='nothing matches';els.push(p)}
   list.replaceChildren(...els);
   for(const id of [...nodes.keys()])if(!events.has(id))nodes.delete(id);
   if(actId&&nodes.has(actId)){const t=nodes.get(actId).ta;if(document.activeElement!==t){t.focus({preventScroll:true});try{t.setSelectionRange(s,en)}catch(e){}}}
